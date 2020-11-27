@@ -77,7 +77,7 @@ public abstract class BaseArFragment extends Fragment
      * The callback will only be invoked once after a Session is initialized and before it is
      * resumed for the first time.
      *
-     * @see #setOnSessionInitializationListener(OnTapArPlaneListener)
+     * @see #setOnSessionInitializationListener(OnSessionInitializationListener)
      * @param session The ARCore Session.
      */
     void onSessionInitialization(Session session);
@@ -533,7 +533,7 @@ public abstract class BaseArFragment extends Fragment
   }
 
   private void start() {
-    if (isStarted) {
+    if (isStarted || arSceneView.getSession().getSharedCamera() != null) {
       return;
     }
 
