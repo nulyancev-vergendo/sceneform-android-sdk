@@ -2,13 +2,14 @@ package com.google.ar.sceneform;
 
 import android.content.Context;
 import android.media.Image;
-
-import androidx.annotation.Nullable;
-import androidx.annotation.UiThread;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Display;
 import android.view.WindowManager;
+
+import androidx.annotation.Nullable;
+import androidx.annotation.UiThread;
+
 import com.google.ar.core.Anchor;
 import com.google.ar.core.CameraConfig.FacingDirection;
 import com.google.ar.core.Config;
@@ -18,26 +19,24 @@ import com.google.ar.core.LightEstimate;
 import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
 import com.google.ar.core.TrackingState;
-
 import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.FatalException;
-
 import com.google.ar.sceneform.math.Vector3;
 import com.google.ar.sceneform.rendering.CameraStream;
 import com.google.ar.sceneform.rendering.Color;
 import com.google.ar.sceneform.rendering.EnvironmentalHdrLightEstimate;
 import com.google.ar.sceneform.rendering.GLHelper;
-
 import com.google.ar.sceneform.rendering.PlaneRenderer;
-
 import com.google.ar.sceneform.rendering.Renderer;
 import com.google.ar.sceneform.rendering.ThreadPools;
 import com.google.ar.sceneform.utilities.AndroidPreconditions;
 import com.google.ar.sceneform.utilities.ArCoreVersion;
 import com.google.ar.sceneform.utilities.Preconditions;
+
 import java.lang.ref.WeakReference;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** A SurfaceView that integrates with ARCore and renders a scene. */
@@ -49,6 +48,21 @@ public class ArSceneView extends SceneView {
   private static final float DEFAULT_PIXEL_INTENSITY = 1.0f;
   private static final Color DEFAULT_COLOR_CORRECTION = new Color(1, 1, 1);
 
+  public void setShouldDrawFrame(Boolean should) {
+    shouldDrawFrame.set(should);
+  }
+
+  private AtomicBoolean shouldDrawFrame = new AtomicBoolean(false);
+
+  public boolean isSharedCameraMode() {
+    return isSharedCameraMode;
+  }
+
+  public void setSharedCameraMode(boolean isSharedCameraMode) {
+    this.isSharedCameraMode = isSharedCameraMode;
+  }
+
+  private boolean isSharedCameraMode = false;
   /**
    * When the camera has moved this distance, we create a new anchor to which we attach the Hdr
    * Lighting scene.
@@ -150,6 +164,7 @@ public class ArSceneView extends SceneView {
 
     // Session needs access to a texture id for updating the camera stream.
     // Filament and the Main thread each have their own gl context that share resources for this.
+    Log.d(TAG, "setupSession: setting texture name: " + cameraTextureId);
     session.setCameraTextureName(cameraTextureId);
   }
 
@@ -222,6 +237,8 @@ public class ArSceneView extends SceneView {
    */
   @Override
   public void resume() throws CameraNotAvailableException {
+    if (!isSharedCameraMode)
+      shouldDrawFrame.set(true);
     resumeSession();
     resumeScene();
   }
@@ -290,6 +307,7 @@ public class ArSceneView extends SceneView {
    */
   @Override
   public void pause() {
+    shouldDrawFrame.set(false);
     pauseScene();
     pauseSession();
   }
@@ -418,6 +436,7 @@ public class ArSceneView extends SceneView {
     if (session == null) {
       return false;
     }
+    if (!shouldDrawFrame.get()) return false;
 
     if (!pauseResumeTask.isDone()) {
       return false;

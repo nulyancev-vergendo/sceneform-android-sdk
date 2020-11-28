@@ -18,12 +18,12 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.google.ar.core.CameraConfigFilter;
 import com.google.ar.core.Config;
 import com.google.ar.core.Session;
 import com.google.ar.core.SharedCamera;
-import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.UnavailableException;
 
 import java.util.EnumSet;
@@ -36,10 +36,16 @@ public class SharedCameraFragment extends ArFragment {
     private CameraDevice sharedCameraDevice;
     private SharedCamera sharedCamera;
     private Session arSession;
-    private final HandlerThread cameraThread = new HandlerThread("CameraThread");
-    private final Handler cameraHandler = new Handler(cameraThread.getLooper());
+    private final HandlerThread cameraThread;
+    private final Handler cameraHandler;
     private Size gpuTextureSize;
     private CaptureRequest.Builder captureRequestBuilder;
+
+    public SharedCameraFragment() {
+        cameraThread = new HandlerThread("CameraThread");
+        cameraThread.start();
+        cameraHandler = new Handler(cameraThread.getLooper());
+    }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -49,6 +55,7 @@ public class SharedCameraFragment extends ArFragment {
 
     private void initSharedCamera() {
         try {
+            getArSceneView().setSharedCameraMode(true);
             cameraManager = (CameraManager) requireActivity().getSystemService(Context.CAMERA_SERVICE);
             arSession = createSharedSession();
             sharedCamera = arSession.getSharedCamera();
@@ -73,7 +80,7 @@ public class SharedCameraFragment extends ArFragment {
                     public void onOpened(@NonNull CameraDevice cameraDevice) {
                         Log.d(TAG, "onOpened: camera opened");
                         sharedCameraDevice = cameraDevice;
-                        getArSceneView().setupSession(arSession);//TODO() может надо перенести в onResume()
+                        getArSceneView().setupSession(arSession);
                         try {
                             createCameraPreviewSession();
                         } catch (CameraAccessException e) {
@@ -116,11 +123,7 @@ public class SharedCameraFragment extends ArFragment {
                     @Override
                     public void onActive(@NonNull CameraCaptureSession session) {
                         Log.d(TAG, "onCaptureSessionActive");
-                        try {
-                            getArSceneView().resume();
-                        } catch (CameraNotAvailableException e) {
-                            e.printStackTrace();
-                        }
+                        getArSceneView().resumeAsync(ContextCompat.getMainExecutor(requireContext()));
                     }
 
                     @Override
@@ -137,6 +140,7 @@ public class SharedCameraFragment extends ArFragment {
                 captureRequestBuilder.build(), new CameraCaptureSession.CaptureCallback() {
                     @Override
                     public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                        getArSceneView().setShouldDrawFrame(true);
                         Log.d(TAG, "onCaptureCompleted");
                     }
                 }, cameraHandler);
