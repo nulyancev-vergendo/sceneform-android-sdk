@@ -2,6 +2,7 @@ package com.google.ar.sceneform.ux;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
@@ -13,6 +14,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
+import android.view.PixelCopy;
 import android.view.Surface;
 import android.view.View;
 
@@ -26,11 +28,15 @@ import com.google.ar.core.Session;
 import com.google.ar.core.SharedCamera;
 import com.google.ar.core.exceptions.UnavailableException;
 
+import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.List;
 
 public class SharedCameraFragment extends ArFragment {
-    private final String TAG = this.getClass().getSimpleName();
+    public interface CaptureCallback {
+        void onCaptureComplete(byte[] imageBytes);
+    }
+    private final String TAG = SharedCameraFragment.class.getSimpleName();
     private String cameraId;
     private CameraManager cameraManager;
     private CameraDevice sharedCameraDevice;
@@ -144,6 +150,27 @@ public class SharedCameraFragment extends ArFragment {
                         Log.d(TAG, "onCaptureCompleted");
                     }
                 }, cameraHandler);
+    }
+
+    public void captureTexture(CaptureCallback onCaptureComplete) {
+        if (sharedCamera == null || sharedCamera.getArCoreSurfaces().get(0) == null) {
+            Log.e(TAG,"captureTexture(): sharedCamera or textureSurface == null");
+            return;
+        }
+        Surface surface = sharedCamera.getArCoreSurfaces().get(0);
+        Bitmap surfaceBitmap = Bitmap.createBitmap(gpuTextureSize.getHeight(), gpuTextureSize.getWidth(), Bitmap.Config.ARGB_8888);
+        PixelCopy.OnPixelCopyFinishedListener listener = resultId -> {
+            if (resultId == 0) {
+                int size = surfaceBitmap.getRowBytes() * surfaceBitmap.getHeight();
+                ByteBuffer byteBuffer = ByteBuffer.allocate(size);
+                surfaceBitmap.copyPixelsToBuffer(byteBuffer);
+                byte[] byteArray = byteBuffer.array();
+                onCaptureComplete.onCaptureComplete(byteArray);
+            } else {
+                Log.e(TAG, "captureTexture(): Cannot save surface. Code = " + resultId);
+            }
+        };
+        PixelCopy.request(surface, surfaceBitmap, listener, cameraHandler);
     }
 
     private Session createSharedSession() throws UnavailableException {
