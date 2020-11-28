@@ -2,7 +2,6 @@ package com.google.ar.sceneform.ux;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
@@ -12,9 +11,9 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.Log;
 import android.util.Size;
-import android.view.PixelCopy;
 import android.view.Surface;
 import android.view.View;
 
@@ -28,14 +27,10 @@ import com.google.ar.core.Session;
 import com.google.ar.core.SharedCamera;
 import com.google.ar.core.exceptions.UnavailableException;
 
-import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.List;
 
 public class SharedCameraFragment extends ArFragment {
-    public interface CaptureCallback {
-        void onCaptureComplete(byte[] imageBytes);
-    }
     private final String TAG = SharedCameraFragment.class.getSimpleName();
     private String cameraId;
     private CameraManager cameraManager;
@@ -147,30 +142,20 @@ public class SharedCameraFragment extends ArFragment {
                     @Override
                     public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                         getArSceneView().setShouldDrawFrame(true);
-                        Log.d(TAG, "onCaptureCompleted");
+//                        Log.d(TAG, "onCaptureCompleted");
                     }
                 }, cameraHandler);
     }
 
-    public void captureTexture(CaptureCallback onCaptureComplete) {
-        if (sharedCamera == null || sharedCamera.getArCoreSurfaces().get(0) == null) {
-            Log.e(TAG,"captureTexture(): sharedCamera or textureSurface == null");
+    public void captureTexture(ImageProcessor.OnProceedListener onCaptureComplete) {
+        if (sharedCamera == null) {
+            Log.e(TAG, "captureTexture(): sharedCamera == null");
             return;
         }
+        Log.e(TAG, "captureTexture()");
         Surface surface = sharedCamera.getArCoreSurfaces().get(0);
-        Bitmap surfaceBitmap = Bitmap.createBitmap(gpuTextureSize.getHeight(), gpuTextureSize.getWidth(), Bitmap.Config.ARGB_8888);
-        PixelCopy.OnPixelCopyFinishedListener listener = resultId -> {
-            if (resultId == 0) {
-                int size = surfaceBitmap.getRowBytes() * surfaceBitmap.getHeight();
-                ByteBuffer byteBuffer = ByteBuffer.allocate(size);
-                surfaceBitmap.copyPixelsToBuffer(byteBuffer);
-                byte[] byteArray = byteBuffer.array();
-                onCaptureComplete.onCaptureComplete(byteArray);
-            } else {
-                Log.e(TAG, "captureTexture(): Cannot save surface. Code = " + resultId);
-            }
-        };
-        PixelCopy.request(surface, surfaceBitmap, listener, cameraHandler);
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new ImageProcessor(surface, gpuTextureSize, handler, onCaptureComplete));
     }
 
     private Session createSharedSession() throws UnavailableException {

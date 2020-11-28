@@ -1,0 +1,46 @@
+package com.google.ar.sceneform.ux;
+
+import android.graphics.Bitmap;
+import android.os.Handler;
+import android.util.Log;
+import android.util.Size;
+import android.view.PixelCopy;
+import android.view.Surface;
+
+import java.io.ByteArrayOutputStream;
+
+public class ImageProcessor implements Runnable {
+    private final String TAG = ImageProcessor.class.getSimpleName();
+    public interface OnProceedListener {
+        void onProcessed(byte[] bytes);
+    }
+
+    private final Surface surface;
+    private final Size size;
+    private final Handler handler;
+    private final OnProceedListener onProceedListener;
+
+    public ImageProcessor(Surface surface, Size size, Handler handler, OnProceedListener listener) {
+        this.surface = surface;
+        this.size = size;
+        this.handler = handler;
+        this.onProceedListener = listener;
+    }
+
+    @Override
+    public void run() {
+        if (surface == null) return;
+        Bitmap surfaceBitmap = Bitmap.createBitmap(size.getHeight(), size.getWidth(), Bitmap.Config.ARGB_8888);
+        PixelCopy.OnPixelCopyFinishedListener listener = resultId -> {
+            if (resultId == PixelCopy.SUCCESS) {
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                surfaceBitmap.compress(Bitmap.CompressFormat.JPEG, 95, bos);
+                byte[] byteArray = bos.toByteArray();
+                onProceedListener.onProcessed(byteArray);
+            } else {
+                Log.e(TAG, "captureTexture(): Cannot save surface. Code = " + resultId);
+            }
+        };
+        PixelCopy.request(surface, surfaceBitmap, listener, handler);
+    }
+}
