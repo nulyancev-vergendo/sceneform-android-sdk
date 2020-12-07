@@ -164,4 +164,11 @@ public class SharedCameraFragment extends ArFragment {
         session.configure(config);
         return session;
     }
+
+    @Override
+    public void onDestroy() {
+        sharedCameraDevice.close();
+        cameraThread.quitSafely();
+        super.onDestroy();
+    }
 }
