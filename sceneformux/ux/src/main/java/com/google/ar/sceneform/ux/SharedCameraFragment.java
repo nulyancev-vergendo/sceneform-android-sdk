@@ -149,10 +149,8 @@ public class SharedCameraFragment extends ArFragment {
 
     public void captureTexture(ImageProcessor.OnProceedListener onCaptureComplete) {
         if (sharedCamera == null) {
-            Log.e(TAG, "captureTexture(): sharedCamera == null");
             return;
         }
-        Log.e(TAG, "captureTexture()");
         Surface surface = sharedCamera.getArCoreSurfaces().get(0);
         Handler handler = new Handler(Looper.getMainLooper());
         handler.post(new ImageProcessor(surface, gpuTextureSize, handler, onCaptureComplete));
