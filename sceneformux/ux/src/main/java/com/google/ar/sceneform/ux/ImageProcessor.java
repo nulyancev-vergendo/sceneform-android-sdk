@@ -1,6 +1,7 @@
 package com.google.ar.sceneform.ux;
 
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.os.Handler;
 import android.util.Log;
 import android.util.Size;
@@ -34,7 +35,9 @@ public class ImageProcessor implements Runnable {
         PixelCopy.OnPixelCopyFinishedListener listener = resultId -> {
             if (resultId == PixelCopy.SUCCESS) {
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                surfaceBitmap.compress(Bitmap.CompressFormat.JPEG, 95, bos);
+                // to unify with camera2 picture rotation
+                Bitmap rotatedBitmap = rotateBitmap(surfaceBitmap, -90);
+                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, bos);
                 byte[] byteArray = bos.toByteArray();
                 onProceedListener.onProcessed(byteArray);
             } else {
@@ -42,5 +45,11 @@ public class ImageProcessor implements Runnable {
             }
         };
         PixelCopy.request(surface, surfaceBitmap, listener, handler);
+    }
+
+    private Bitmap rotateBitmap(Bitmap target, Integer degree) {
+        Matrix rotateMatrix = new Matrix();
+        rotateMatrix.postRotate(degree);
+        return Bitmap.createBitmap(target, 0, 0, target.getWidth(), target.getHeight(), rotateMatrix, true);
     }
 }
