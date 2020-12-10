@@ -9,6 +9,7 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.TotalCaptureResult;
 import android.os.Bundle;
+import android.os.ConditionVariable;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -41,6 +42,7 @@ public class SharedCameraFragment extends ArFragment {
     private final Handler cameraHandler;
     private Size gpuTextureSize;
     private CaptureRequest.Builder captureRequestBuilder;
+    private final ConditionVariable safeToDestroyFragment = new ConditionVariable();
 
     public SharedCameraFragment() {
         cameraThread = new HandlerThread("CameraThread");
@@ -97,6 +99,11 @@ public class SharedCameraFragment extends ArFragment {
                     @Override
                     public void onError(@NonNull CameraDevice cameraDevice, int i) {
                         Log.d(TAG, "onError: camera state error. error id: " + i);
+                    }
+
+                    @Override
+                    public void onClosed(@NonNull CameraDevice camera) {
+                        safeToDestroyFragment.open();
                     }
                 }, cameraHandler
         );
@@ -168,7 +175,13 @@ public class SharedCameraFragment extends ArFragment {
     @Override
     public void onDestroy() {
         sharedCameraDevice.close();
+        waitUntilCameraClosing();
         cameraThread.quitSafely();
         super.onDestroy();
+    }
+
+    private void waitUntilCameraClosing() {
+        safeToDestroyFragment.close();
+        safeToDestroyFragment.block();
     }
 }
