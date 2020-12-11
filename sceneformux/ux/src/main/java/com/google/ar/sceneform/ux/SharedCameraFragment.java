@@ -32,6 +32,9 @@ import java.util.EnumSet;
 import java.util.List;
 
 public class SharedCameraFragment extends ArFragment {
+    public interface OnCameraClosedListener {
+        void onCameraClosed();
+    }
     private final String TAG = SharedCameraFragment.class.getSimpleName();
     private String cameraId;
     private CameraManager cameraManager;
@@ -43,6 +46,7 @@ public class SharedCameraFragment extends ArFragment {
     private Size gpuTextureSize;
     private CaptureRequest.Builder captureRequestBuilder;
     private final ConditionVariable safeToDestroyFragment = new ConditionVariable();
+    private OnCameraClosedListener onCameraClosedListener;
 
     public SharedCameraFragment() {
         cameraThread = new HandlerThread("CameraThread");
@@ -177,11 +181,17 @@ public class SharedCameraFragment extends ArFragment {
         sharedCameraDevice.close();
         waitUntilCameraClosing();
         cameraThread.quitSafely();
+        if (onCameraClosedListener != null)
+            onCameraClosedListener.onCameraClosed();
         super.onDestroy();
     }
 
     private void waitUntilCameraClosing() {
         safeToDestroyFragment.close();
         safeToDestroyFragment.block();
+    }
+
+    public void setOnCameraClosedListener(OnCameraClosedListener onClosed) {
+        onCameraClosedListener = onClosed;
     }
 }
