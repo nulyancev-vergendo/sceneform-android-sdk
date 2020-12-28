@@ -170,6 +170,7 @@ public class SharedCameraFragment extends ArFragment {
     private Session createSharedSession() throws UnavailableException {
         Session session = new Session(requireContext(), EnumSet.of(Session.Feature.SHARED_CAMERA));
         Config config = session.getConfig();
+        config.setLightEstimationMode(Config.LightEstimationMode.DISABLED);
         config.setFocusMode(Config.FocusMode.AUTO);
         config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
         session.configure(config);
